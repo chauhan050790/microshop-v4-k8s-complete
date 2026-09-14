@@ -14,7 +14,7 @@ Base manifests:
 - Namespace
 - ServiceAccount
 - ConfigMap
-- Secret example
+- ExternalSecret-backed runtime credentials
 - 7 Deployments
 - 7 Services
 - HPA
@@ -33,5 +33,9 @@ and
 Recommended production workflow:
 Git -> Argo CD -> Helm -> EKS.
 
-Do not commit real Kubernetes Secrets.
+The Kustomize overlays use an immutable bootstrap SHA and registry so they
+remain parseable. Before applying them, set the real ECR registry and 40
+character image tag with `kustomize edit set image` (or use the Helm/Argo
+workflow, which enforces `releaseTag`).
 
+Do not commit real Kubernetes Secrets.

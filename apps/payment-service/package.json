@@ -7,7 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "cross-env PRISMA_GENERATE_SKIP_AUTOINSTALL=true prisma generate --schema prisma/schema.prisma",
+    "postinstall": "npm run db:generate"
   },
   "dependencies": {
     "express": "^4.21.2",
@@ -24,6 +26,8 @@
     "@types/node": "^22.10.5",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
-    "@types/amqplib": "^0.10.6"
+    "@types/amqplib": "^0.10.6",
+    "prisma": "^6.1.0",
+    "cross-env": "^7.0.3"
   }
 }

@@ -1,33 +1,64 @@
+{{- $releaseTag := required "releaseTag must be supplied as an immutable image tag" .Values.releaseTag -}}
+{{- $registry := required "global.registry must be supplied (for example, an ECR registry)" .Values.global.registry -}}
+{{- if not (regexMatch "^[0-9a-f]{40}$" $releaseTag) }}{{ fail "releaseTag must be a 40-character lowercase Git SHA" }}{{ end }}
 {{- range $name,$s := .Values.services }}
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: {{$name}},labels: {app: {{$name}}}}
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels: { app: {{ $name }} }
 spec:
-  replicas: {{$s.replicas}}
-  strategy: {type: RollingUpdate,rollingUpdate: {maxUnavailable: 0,maxSurge: 1}}
-  selector: {matchLabels: {app: {{$name}}}}
+  replicas: {{ $s.replicas }}
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+  selector: { matchLabels: { app: {{ $name }} } }
   template:
-    metadata: {labels: {app: {{$name}}}}
+    metadata: { labels: { app: {{ $name }} } }
     spec:
       serviceAccountName: microshop
-      securityContext: {seccompProfile: {type: RuntimeDefault}}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
       containers:
-      - name: {{$name}}
-        image: "{{$.Values.global.registry}}/{{$s.image}}:{{default "REPLACE_RELEASE" $.Values.releaseTag}}"
-        imagePullPolicy: {{$.Values.global.imagePullPolicy}}
-        ports: [{name: http,containerPort: {{$s.port}}}]
-        envFrom: [{secretRef: {name: microshop-secrets}}]
-        resources: {requests: {cpu: 100m,memory: 128Mi},limits: {cpu: 500m,memory: 512Mi}}
-        readinessProbe: {httpGet: {path: /health,port: http},initialDelaySeconds: 5,periodSeconds: 10}
-        livenessProbe: {httpGet: {path: /health,port: http},initialDelaySeconds: 15,periodSeconds: 20}
-        securityContext: {allowPrivilegeEscalation: false,readOnlyRootFilesystem: true,capabilities: {drop: ["ALL"]}}
+      - name: {{ $name }}
+        image: "{{ $registry }}/{{ $s.image }}:{{ $releaseTag }}"
+        imagePullPolicy: {{ $.Values.global.imagePullPolicy }}
+        ports: [{ name: http, containerPort: {{ $s.port }} }]
+        envFrom:
+        - configMapRef: { name: microshop-config }
+        - secretRef: { name: microshop-secrets }
+        resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: 500m, memory: 512Mi } }
+        readinessProbe:
+          httpGet: { path: {{ $s.healthPath }}, port: http }
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet: { path: {{ $s.healthPath }}, port: http }
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 5
+        startupProbe:
+          httpGet: { path: {{ $s.healthPath }}, port: http }
+          periodSeconds: 5
+          failureThreshold: 30
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: { drop: ["ALL"] }
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: {{$name}},labels: {app: {{$name}}}}
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels: { app: {{ $name }} }
 spec:
-  selector: {app: {{$name}}}
-  ports: [{name: http,port: {{$s.port}},targetPort: http}]
+  type: ClusterIP
+  selector: { app: {{ $name }} }
+  ports: [{ name: http, port: {{ $s.port }}, targetPort: http }]
 ---
-{{- end}}
-
+{{- end }}

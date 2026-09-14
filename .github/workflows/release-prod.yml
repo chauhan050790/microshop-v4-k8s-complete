@@ -1,20 +1,27 @@
 name: Production Release
 on:
   workflow_dispatch:
-    inputs: {image_tag: {description: Immutable Git SHA,required: true}}
-permissions: {contents: write,id-token: write}
+    inputs:
+      image_tag: {description: Immutable Git SHA,required: true}
+      ecr_registry: {description: ECR registry hostname,required: true}
+permissions: {contents: write}
 jobs:
   release:
     environment: production
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Validate immutable image tag
+      shell: bash
+      run: |
+        [[ "${{ inputs.image_tag }}" =~ ^[0-9a-f]{40}$ ]]
+        [[ "${{ inputs.ecr_registry }}" =~ ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com$ ]]
     - name: Update production GitOps tag
       run: |
-        sed -i "s/REPLACE_PROD_TAG/${{inputs.image_tag}}/g" argocd/application-prod.yaml
+        perl -0pi -e "s/(name: releaseTag\\s+value: \")[^\"]+/\1${{inputs.image_tag}}/" argocd/application-prod.yaml
+        perl -0pi -e "s/(name: global\\.registry\\s+value: \")[^\"]+/\1${{inputs.ecr_registry}}/" argocd/application-prod.yaml
         git config user.name github-actions
         git config user.email github-actions@github.com
         git add argocd/application-prod.yaml
         git commit -m "release: ${{inputs.image_tag}}" || true
         git push
-

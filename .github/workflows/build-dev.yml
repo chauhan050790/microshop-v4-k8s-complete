@@ -4,7 +4,7 @@ on:
 permissions: {id-token: write,contents: write}
 env:
   AWS_REGION: ap-south-1
-  ECR_REGISTRY: REPLACE_DEV_ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,6 +12,20 @@ jobs:
       matrix: {service: [frontend,api-gateway,user-service,product-service,order-service,payment-service,notification-service]}
     steps:
     - uses: actions/checkout@v4
+    - name: Validate image registry and tag
+      shell: bash
+      run: |
+        test -n "$ECR_REGISTRY"
+        [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: apps/${{matrix.service}}/package-lock.json
+    - run: npm ci
+      working-directory: apps/${{matrix.service}}
+    - run: npm run build
+      working-directory: apps/${{matrix.service}}
     - uses: aws-actions/configure-aws-credentials@v4
       with: {role-to-assume: '${{secrets.AWS_GITHUB_ACTIONS_ROLE_ARN}}',aws-region: '${{env.AWS_REGION}}'}
     - uses: aws-actions/amazon-ecr-login@v2
@@ -19,4 +33,14 @@ jobs:
     - uses: aquasecurity/trivy-action@0.28.0
       with: {image-ref: '$ECR_REGISTRY/microshop/${{matrix.service}}:${{github.sha}}',severity: HIGH,CRITICAL,exit-code: '1',ignore-unfixed: true}
     - run: docker push "$ECR_REGISTRY/microshop/${{matrix.service}}:${GITHUB_SHA}"
-
+    - name: Update DEV GitOps tag
+      if: matrix.service == 'notification-service'
+      shell: bash
+      run: |
+        perl -0pi -e "s/(name: releaseTag\\s+value: \")[^\"]+/\1${GITHUB_SHA}/" argocd/application-dev.yaml
+        perl -0pi -e "s/(name: global\\.registry\\s+value: \")[^\"]+/\1${ECR_REGISTRY}/" argocd/application-dev.yaml
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git add argocd/application-dev.yaml
+        git commit -m "release(dev): ${GITHUB_SHA}" || true
+        git push

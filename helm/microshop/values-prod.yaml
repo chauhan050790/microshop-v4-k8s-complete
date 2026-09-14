@@ -1,13 +1,19 @@
-global: {registry: REPLACE_PROD_ECR_REGISTRY,imagePullPolicy: IfNotPresent,irsaRoleArn: REPLACE_PROD_IRSA_ROLE_ARN}
+global:
+  registry: ""
+  imagePullPolicy: IfNotPresent
 secretName: microshop/prod
-ingress: {host: microshop.example.com,certificateArn: REPLACE_PROD_ACM_ARN,enabled: true}
-hpa: {enabled: true,min: 3,max: 20,cpu: 65}
+networkPolicy:
+  dependencyCidrs: ["10.30.0.0/16"]
+ingress:
+  host: microshop.example.com
+  certificateArn: ""
+  enabled: true
+hpa: { enabled: true, min: 3, max: 20, cpu: 65 }
 services:
-  frontend: {image: microshop/frontend,port: 80,replicas: 3}
-  api-gateway: {image: microshop/api-gateway,port: 4000,replicas: 3}
-  user-service: {image: microshop/user-service,port: 4001,replicas: 3}
-  product-service: {image: microshop/product-service,port: 4002,replicas: 3}
-  order-service: {image: microshop/order-service,port: 4003,replicas: 3}
-  payment-service: {image: microshop/payment-service,port: 4004,replicas: 3}
-  notification-service: {image: microshop/notification-service,port: 4005,replicas: 3}
-
+  frontend: { image: microshop/frontend, port: 80, replicas: 3, healthPath: / }
+  api-gateway: { image: microshop/api-gateway, port: 4000, replicas: 3, healthPath: /health }
+  user-service: { image: microshop/user-service, port: 4001, replicas: 3, healthPath: /health }
+  product-service: { image: microshop/product-service, port: 4002, replicas: 3, healthPath: /health }
+  order-service: { image: microshop/order-service, port: 4003, replicas: 3, healthPath: /health }
+  payment-service: { image: microshop/payment-service, port: 4004, replicas: 3, healthPath: /health }
+  notification-service: { image: microshop/notification-service, port: 4005, replicas: 3, healthPath: /health }

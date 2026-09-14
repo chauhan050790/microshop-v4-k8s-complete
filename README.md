@@ -41,7 +41,7 @@ Create order:
 POST /api/orders
 Authorization: Bearer <token>
 ```json
-{"items":[{"productId":"p100","quantity":1}]}
+{"items":[{"productId":"00000000-0000-0000-0000-000000000100","quantity":1}]}
 ```
 
 ## Full local architecture
@@ -56,7 +56,7 @@ Product -> Redis
 Use separate AWS environments/accounts for DEV and PROD. Terraform creates the core AWS infrastructure.
 Argo CD deploys the Helm release to EKS. DEV auto-syncs; PROD requires approval/manual sync.
 
-Replace every `REPLACE_*` value. Never commit real credentials.
+Set the ECR registry and immutable Helm `releaseTag` at deployment time. Never commit real credentials.
 
 ## Commands
 

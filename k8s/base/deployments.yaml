@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: frontend
-        image: REPLACE_ECR_REGISTRY/microshop/frontend:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/frontend:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -99,7 +99,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: api-gateway
-        image: REPLACE_ECR_REGISTRY/microshop/api-gateway:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/api-gateway:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -171,7 +171,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: user-service
-        image: REPLACE_ECR_REGISTRY/microshop/user-service:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/user-service:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -243,7 +243,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: product-service
-        image: REPLACE_ECR_REGISTRY/microshop/product-service:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/product-service:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -315,7 +315,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: order-service
-        image: REPLACE_ECR_REGISTRY/microshop/order-service:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/order-service:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -387,7 +387,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: payment-service
-        image: REPLACE_ECR_REGISTRY/microshop/payment-service:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/payment-service:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -459,7 +459,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: notification-service
-        image: REPLACE_ECR_REGISTRY/microshop/notification-service:REPLACE_IMAGE_TAG
+        image: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/notification-service:0000000000000000000000000000000000000000
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

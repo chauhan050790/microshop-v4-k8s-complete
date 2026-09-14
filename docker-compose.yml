@@ -16,19 +16,19 @@ services:
     depends_on: [user-service,product-service,order-service,payment-service]
   user-service:
     build: ./apps/user-service
-    environment: {PORT: 4001,JWT_SECRET: ${JWT_SECRET}}
+    environment: {PORT: 4001,JWT_SECRET: ${JWT_SECRET},DATABASE_URL: ${DATABASE_URL}}
   product-service:
     build: ./apps/product-service
-    environment: {PORT: 4002,REDIS_URL: redis://redis:6379}
-    depends_on: [redis]
+    environment: {PORT: 4002,REDIS_URL: redis://redis:6379,DATABASE_URL: ${DATABASE_URL},JWT_SECRET: ${JWT_SECRET}}
+    depends_on: [postgres,redis]
   order-service:
     build: ./apps/order-service
-    environment: {PORT: 4003,RABBITMQ_URL: ${RABBITMQ_URL}}
-    depends_on: [rabbitmq]
+    environment: {PORT: 4003,RABBITMQ_URL: ${RABBITMQ_URL},DATABASE_URL: ${DATABASE_URL},JWT_SECRET: ${JWT_SECRET}}
+    depends_on: [postgres,rabbitmq]
   payment-service:
     build: ./apps/payment-service
-    environment: {PORT: 4004,RABBITMQ_URL: ${RABBITMQ_URL}}
-    depends_on: [rabbitmq]
+    environment: {PORT: 4004,RABBITMQ_URL: ${RABBITMQ_URL},DATABASE_URL: ${DATABASE_URL},JWT_SECRET: ${JWT_SECRET}}
+    depends_on: [postgres,rabbitmq]
   notification-service:
     build: ./apps/notification-service
     environment: {PORT: 4005,RABBITMQ_URL: ${RABBITMQ_URL}}
@@ -46,4 +46,3 @@ services:
     environment: {RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER},RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}}
     ports: ["15672:15672"]
 volumes: {pgdata: {},redisdata: {}}
-
