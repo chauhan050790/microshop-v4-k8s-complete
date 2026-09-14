@@ -81,4 +81,3 @@ Then configure AWS Load Balancer Controller, External Secrets Operator, Argo CD 
 ## Production caveat
 
 The repository is production-oriented and intentionally explicit, but real production requires organization-specific security review, sizing, backup/restore validation, DR, WAF policy, observability SLOs, compliance controls, domain/certificate configuration and secret rotation.
-
