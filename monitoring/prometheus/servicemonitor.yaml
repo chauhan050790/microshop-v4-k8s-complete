@@ -1,0 +1,7 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: {name: microshop,namespace: microshop-prod}
+spec:
+  selector: {matchLabels: {app: api-gateway}}
+  endpoints: [{port: http,path: /metrics}]
+

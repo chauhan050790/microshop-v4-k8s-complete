@@ -1,0 +1,84 @@
+# MicroShop — Complete Full-Stack DEV/PROD Repository
+
+This repository is a complete runnable learning/portfolio platform for Senior DevOps interviews.
+
+## Stack
+React + TypeScript | Node.js + Express + TypeScript | PostgreSQL + Prisma | Redis | RabbitMQ
+Docker | Kubernetes | Helm | AWS EKS/ECR/RDS/ElastiCache/Amazon MQ | Terraform
+GitHub Actions | Argo CD | Prometheus/Grafana | AWS Secrets Manager + External Secrets
+
+## Services
+frontend : 3000
+api-gateway : 4000
+user-service : 4001
+product-service : 4002
+order-service : 4003
+payment-service : 4004
+notification-service : 4005
+
+## Local quick start
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open http://localhost:3000
+
+Register:
+POST /api/auth/register
+```json
+{"email":"demo@example.com","password":"Password123!"}
+```
+
+Login:
+POST /api/auth/login
+
+Products:
+GET /api/products
+
+Create order:
+POST /api/orders
+Authorization: Bearer <token>
+```json
+{"items":[{"productId":"p100","quantity":1}]}
+```
+
+## Full local architecture
+
+Browser -> NGINX -> API Gateway -> services
+Order/Payment -> RabbitMQ -> Notification
+User/Product/Order/Payment -> PostgreSQL
+Product -> Redis
+
+## Production
+
+Use separate AWS environments/accounts for DEV and PROD. Terraform creates the core AWS infrastructure.
+Argo CD deploys the Helm release to EKS. DEV auto-syncs; PROD requires approval/manual sync.
+
+Replace every `REPLACE_*` value. Never commit real credentials.
+
+## Commands
+
+```bash
+make install
+make test
+make compose-up
+make compose-down
+make helm-lint
+```
+
+For AWS:
+```bash
+cd infra/terraform/envs/dev
+terraform init
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
+```
+
+Then configure AWS Load Balancer Controller, External Secrets Operator, Argo CD and kube-prometheus-stack using docs/platform-bootstrap.md.
+
+## Production caveat
+
+The repository is production-oriented and intentionally explicit, but real production requires organization-specific security review, sizing, backup/restore validation, DR, WAF policy, observability SLOs, compliance controls, domain/certificate configuration and secret rotation.
+

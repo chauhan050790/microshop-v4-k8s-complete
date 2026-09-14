@@ -1,0 +1,19 @@
+name: CI
+on: [push,pull_request]
+permissions: {contents: read}
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: {service: [api-gateway,user-service,product-service,order-service,payment-service,notification-service,frontend]}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with: {node-version: 22}
+    - run: npm install
+      working-directory: apps/${{matrix.service}}
+    - run: npm test
+      working-directory: apps/${{matrix.service}}
+    - run: npm run build
+      working-directory: apps/${{matrix.service}}
+

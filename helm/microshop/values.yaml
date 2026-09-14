@@ -1,0 +1,19 @@
+global:
+  registry: REPLACE_ECR_REGISTRY
+  imagePullPolicy: IfNotPresent
+  irsaRoleArn: REPLACE_IRSA_ROLE_ARN
+secretName: microshop/prod
+ingress:
+  host: microshop.example.com
+  certificateArn: REPLACE_ACM_ARN
+  enabled: true
+hpa: {enabled: true,min: 3,max: 20,cpu: 65}
+services:
+  frontend: {image: microshop/frontend,port: 80,replicas: 3}
+  api-gateway: {image: microshop/api-gateway,port: 4000,replicas: 3}
+  user-service: {image: microshop/user-service,port: 4001,replicas: 3}
+  product-service: {image: microshop/product-service,port: 4002,replicas: 3}
+  order-service: {image: microshop/order-service,port: 4003,replicas: 3}
+  payment-service: {image: microshop/payment-service,port: 4004,replicas: 3}
+  notification-service: {image: microshop/notification-service,port: 4005,replicas: 3}
+

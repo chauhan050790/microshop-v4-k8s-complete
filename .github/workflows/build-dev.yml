@@ -1,0 +1,22 @@
+name: Build DEV
+on:
+  push: {branches: [develop]}
+permissions: {id-token: write,contents: write}
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: REPLACE_DEV_ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: {service: [frontend,api-gateway,user-service,product-service,order-service,payment-service,notification-service]}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: aws-actions/configure-aws-credentials@v4
+      with: {role-to-assume: '${{secrets.AWS_GITHUB_ACTIONS_ROLE_ARN}}',aws-region: '${{env.AWS_REGION}}'}
+    - uses: aws-actions/amazon-ecr-login@v2
+    - run: docker build -t "$ECR_REGISTRY/microshop/${{matrix.service}}:${GITHUB_SHA}" apps/${{matrix.service}}
+    - uses: aquasecurity/trivy-action@0.28.0
+      with: {image-ref: '$ECR_REGISTRY/microshop/${{matrix.service}}:${{github.sha}}',severity: HIGH,CRITICAL,exit-code: '1',ignore-unfixed: true}
+    - run: docker push "$ECR_REGISTRY/microshop/${{matrix.service}}:${GITHUB_SHA}"
+

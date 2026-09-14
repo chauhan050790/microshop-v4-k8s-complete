@@ -1,0 +1,13 @@
+global: {registry: REPLACE_DEV_ECR_REGISTRY,imagePullPolicy: IfNotPresent,irsaRoleArn: REPLACE_DEV_IRSA_ROLE_ARN}
+secretName: microshop/dev
+ingress: {host: dev.microshop.example.com,certificateArn: REPLACE_DEV_ACM_ARN,enabled: true}
+hpa: {enabled: false,min: 1,max: 3,cpu: 70}
+services:
+  frontend: {image: microshop/frontend,port: 80,replicas: 1}
+  api-gateway: {image: microshop/api-gateway,port: 4000,replicas: 2}
+  user-service: {image: microshop/user-service,port: 4001,replicas: 1}
+  product-service: {image: microshop/product-service,port: 4002,replicas: 1}
+  order-service: {image: microshop/order-service,port: 4003,replicas: 1}
+  payment-service: {image: microshop/payment-service,port: 4004,replicas: 1}
+  notification-service: {image: microshop/notification-service,port: 4005,replicas: 1}
+

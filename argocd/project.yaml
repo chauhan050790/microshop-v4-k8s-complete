@@ -1,0 +1,9 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata: {name: microshop,namespace: argocd}
+spec:
+  sourceRepos: ["https://github.com/REPLACE_ORG/microshop.git"]
+  destinations:
+  - {server: https://kubernetes.default.svc,namespace: microshop-dev}
+  - {server: https://kubernetes.default.svc,namespace: microshop-prod}
+

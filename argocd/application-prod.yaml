@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {name: microshop-prod,namespace: argocd}
+spec:
+  project: microshop
+  source:
+    repoURL: https://github.com/REPLACE_ORG/microshop.git
+    targetRevision: main
+    path: helm/microshop
+    helm: {valueFiles: [values-prod.yaml],parameters: [{name: releaseTag,value: REPLACE_PROD_TAG}]}
+  destination: {server: https://kubernetes.default.svc,namespace: microshop-prod}
+  syncPolicy: {syncOptions: [CreateNamespace=true]}
+

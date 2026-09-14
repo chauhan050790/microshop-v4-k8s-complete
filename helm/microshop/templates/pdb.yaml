@@ -1,0 +1,8 @@
+{{- range $name,$s := .Values.services }}{{- if gt (int $s.replicas) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: {{$name}}}
+spec: {minAvailable: 1,selector: {matchLabels: {app: {{$name}}}}}
+---
+{{- end}}{{- end}}
+
