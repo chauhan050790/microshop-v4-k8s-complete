@@ -12,6 +12,10 @@ variable "num_cache_clusters" {
   type    = number
   default = 2
 }
+variable "security_group_ids" {
+  type    = list(string)
+  default = []
+}
 
 resource "aws_elasticache_subnet_group" "redis" {
   name       = "${var.name}-redis"
@@ -29,6 +33,7 @@ resource "aws_elasticache_replication_group" "redis" {
   subnet_group_name          = aws_elasticache_subnet_group.redis.name
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
+  security_group_ids         = var.security_group_ids
 }
 
 output "endpoint" {

@@ -36,6 +36,10 @@ variable "multi_az" {
   type    = bool
   default = true
 }
+variable "vpc_security_group_ids" {
+  type    = list(string)
+  default = []
+}
 variable "skip_final_snapshot" {
   type    = bool
   default = false
@@ -62,6 +66,7 @@ resource "aws_db_instance" "db" {
   deletion_protection        = var.deletion_protection
   multi_az                   = var.multi_az
   publicly_accessible        = false
+  vpc_security_group_ids     = var.vpc_security_group_ids
   auto_minor_version_upgrade = true
   skip_final_snapshot        = var.skip_final_snapshot
   copy_tags_to_snapshot      = true

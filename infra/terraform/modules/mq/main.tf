@@ -16,15 +16,21 @@ variable "instance_type" {
   type    = string
   default = "mq.t3.micro"
 }
+variable "security_groups" {
+  type    = list(string)
+  default = []
+}
 
 resource "aws_mq_broker" "mq" {
-  broker_name         = var.name
-  engine_type         = "RabbitMQ"
-  engine_version      = "3.13"
-  host_instance_type  = var.instance_type
-  publicly_accessible = var.publicly_accessible
-  deployment_mode     = var.deployment_mode
-  subnet_ids          = var.deployment_mode == "SINGLE_INSTANCE" ? [var.subnet_ids[0]] : var.subnet_ids
+  broker_name                = var.name
+  engine_type                = "RabbitMQ"
+  engine_version             = "3.13"
+  host_instance_type         = var.instance_type
+  publicly_accessible        = var.publicly_accessible
+  deployment_mode            = var.deployment_mode
+  auto_minor_version_upgrade = true
+  security_groups            = var.security_groups
+  subnet_ids                 = var.deployment_mode == "SINGLE_INSTANCE" ? [var.subnet_ids[0]] : var.subnet_ids
   user {
     username = "microshop"
     password = var.password

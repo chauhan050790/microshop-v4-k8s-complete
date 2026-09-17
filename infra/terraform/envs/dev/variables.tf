@@ -12,7 +12,7 @@ variable "mq_password" {
 }
 variable "db_backup_retention_period" {
   type    = number
-  default = 7
+  default = 0
 }
 variable "db_deletion_protection" {
   type    = bool
