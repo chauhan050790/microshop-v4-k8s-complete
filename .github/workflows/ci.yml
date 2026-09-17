@@ -53,12 +53,6 @@ jobs:
         service: [api-gateway, user-service, product-service, order-service, payment-service, notification-service, frontend]
     steps:
     - uses: actions/checkout@v4
-    - name: Inspect OIDC claims
-      shell: bash
-      run: |
-        token=$(curl -fsS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-          "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r .value)
-        echo "$token" | cut -d. -f2 | base64 -d 2>/dev/null | jq '{sub,aud,repository,ref,job_workflow_ref}'
     - uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::185188589391:role/MicroShopGitHubActionsECR
