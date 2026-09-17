@@ -1,6 +1,8 @@
 name: CI
 on: [push, pull_request]
-permissions: {contents: read}
+permissions:
+  contents: write
+  id-token: write
 jobs:
   test-build:
     runs-on: ubuntu-latest
@@ -42,3 +44,44 @@ jobs:
     - run: |
         kubectl kustomize k8s/dev >/dev/null
         kubectl kustomize k8s/prod >/dev/null
+  publish-images:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api-gateway, user-service, product-service, order-service, payment-service, notification-service, frontend]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::185188589391:role/MicroShopGitHubActionsECR
+        aws-region: ap-south-1
+    - uses: aws-actions/amazon-ecr-login@v2
+    - uses: docker/setup-buildx-action@v3
+    - uses: docker/build-push-action@v6
+      with:
+        context: apps/${{ matrix.service }}
+        push: true
+        tags: 185188589391.dkr.ecr.ap-south-1.amazonaws.com/microshop/${{ matrix.service }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+  update-dev-gitops:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: publish-images
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Pin DEV images to this commit
+      run: |
+        sed -i "s/000000000000.dkr.ecr.ap-south-1.amazonaws.com/185188589391.dkr.ecr.ap-south-1.amazonaws.com/g" argocd/application-dev.yaml k8s/dev/kustomization.yaml
+        sed -i "s/0000000000000000000000000000000000000000/${GITHUB_SHA}/g" argocd/application-dev.yaml k8s/dev/kustomization.yaml
+    - name: Commit DEV GitOps update
+      run: |
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+        git add argocd/application-dev.yaml k8s/dev/kustomization.yaml
+        git diff --cached --quiet || git commit -m "Deploy DEV ${GITHUB_SHA} [skip ci]"
+        git push
