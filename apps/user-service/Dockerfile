@@ -1,9 +1,9 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
+COPY prisma ./prisma
 RUN npm ci || npm install
 COPY tsconfig.json ./
-COPY prisma ./prisma
 COPY src ./src
 RUN npm run build
 FROM node:22-alpine
