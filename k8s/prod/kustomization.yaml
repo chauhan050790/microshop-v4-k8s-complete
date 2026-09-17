@@ -8,28 +8,35 @@ resources:
 - external-secret.yaml
 patches:
 - path: patches/replicas.yaml
-- path: patches/base-namespace.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: api-gateway
 - path: patches/serviceaccount.yaml
+  target:
+    version: v1
+    kind: ServiceAccount
+    name: microshop
 images:
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/frontend
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/frontend
-  newTag: 0000000000000000000000000000000000000000
+  newTag: "0000000000000000000000000000000000000000"
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/api-gateway
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/api-gateway
-  newTag: 0000000000000000000000000000000000000000
+  newTag: "0000000000000000000000000000000000000000"
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/user-service
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/user-service
-  newTag: 0000000000000000000000000000000000000000
+  newTag: "0000000000000000000000000000000000000000"
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/product-service
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/product-service
-  newTag: 0000000000000000000000000000000000000000
+  newTag: "0000000000000000000000000000000000000000"
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/order-service
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/order-service
-  newTag: 0000000000000000000000000000000000000000
+  newTag: "0000000000000000000000000000000000000000"
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/payment-service
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/payment-service
-  newTag: 0000000000000000000000000000000000000000
+  newTag: "0000000000000000000000000000000000000000"
 - name: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/notification-service
   newName: 000000000000.dkr.ecr.ap-south-1.amazonaws.com/microshop/notification-service
-  newTag: 0000000000000000000000000000000000000000
-
+  newTag: "0000000000000000000000000000000000000000"
