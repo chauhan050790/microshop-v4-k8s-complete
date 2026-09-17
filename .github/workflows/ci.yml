@@ -1,23 +1,24 @@
 name: CI
-on: [push,pull_request]
+on: [push, pull_request]
 permissions: {contents: read}
 jobs:
   test-build:
     runs-on: ubuntu-latest
     strategy:
-      matrix: {service: [api-gateway,user-service,product-service,order-service,payment-service,notification-service,frontend]}
+      matrix: {service: [api-gateway, user-service, product-service, order-service, payment-service, notification-service, frontend]}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
-      with: {node-version: 22}
+      with:
+        node-version: 22
         cache: npm
-        cache-dependency-path: apps/${{matrix.service}}/package-lock.json
+        cache-dependency-path: apps/${{ matrix.service }}/package-lock.json
     - run: npm ci
-      working-directory: apps/${{matrix.service}}
+      working-directory: apps/${{ matrix.service }}
     - run: npm test
-      working-directory: apps/${{matrix.service}}
+      working-directory: apps/${{ matrix.service }}
     - run: npm run build
-      working-directory: apps/${{matrix.service}}
+      working-directory: apps/${{ matrix.service }}
   infrastructure:
     runs-on: ubuntu-latest
     steps:
