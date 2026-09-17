@@ -1,12 +1,18 @@
 import express from "express";import helmet from "helmet";import cors from "cors";import jwt from "jsonwebtoken";import rateLimit from "express-rate-limit";import {createProxyMiddleware,fixRequestBody} from "http-proxy-middleware";import client from "prom-client";
-const app=express(),port=Number(process.env.PORT||4000);
+export const app=express();
+const port=Number(process.env.PORT||4000);
 const secret=process.env.JWT_SECRET;
 if(!secret||secret.length<32)throw new Error("JWT_SECRET must be set and at least 32 characters");
 const origins=(process.env.CORS_ORIGIN||"").split(",").map(v=>v.trim()).filter(Boolean);
 if(origins.length===0)throw new Error("CORS_ORIGIN must contain at least one allowed origin");
-app.use(helmet());app.use(cors({origin:(origin,callback)=>{if(!origin||origins.includes(origin))return callback(null,true);return callback(new Error("origin not allowed"));},credentials:true}));app.use(express.json());app.use(rateLimit({windowMs:60000,limit:300,standardHeaders:true}));
+app.disable("x-powered-by");
+app.use(helmet());
+app.use(cors({origin:(origin,callback)=>{if(!origin||origins.includes(origin))return callback(null,true);return callback(new Error("origin not allowed"));},credentials:true}));
+app.use(express.json({limit:"1mb"}));
+app.use(rateLimit({windowMs:60000,limit:300,standardHeaders:true,legacyHeaders:false}));
 const registry=new client.Registry();client.collectDefaultMetrics({register:registry});
-app.get("/health",(_,r)=>r.json({status:"ok",service:"api-gateway"}));app.get("/metrics",async(_,r)=>{r.set("Content-Type",registry.contentType);r.end(await registry.metrics())});
+app.get("/health",(_,r)=>r.json({status:"ok",service:"api-gateway"}));
+app.get("/metrics",async(_,r)=>{r.set("Content-Type",registry.contentType);r.end(await registry.metrics())});
 const auth=(req:any,res:any,next:any)=>{const h=req.headers.authorization;if(!h?.startsWith("Bearer "))return res.status(401).json({error:"missing bearer token"});try{req.user=jwt.verify(h.slice(7),secret);next()}catch{return res.status(401).json({error:"invalid token"})}};
 const proxy=(target:string)=>createProxyMiddleware({target,changeOrigin:true,pathRewrite:{"^/api":""},proxyTimeout:5000,on:{proxyReq:fixRequestBody}});
 app.use("/api/auth",proxy(process.env.USER_SERVICE_URL||"http://user-service:4001"));
@@ -14,4 +20,6 @@ app.use("/api/users",auth,proxy(process.env.USER_SERVICE_URL||"http://user-servi
 app.use("/api/products",(req,res,next)=>req.method==="GET"?next():auth(req,res,next),proxy(process.env.PRODUCT_SERVICE_URL||"http://product-service:4002"));
 app.use("/api/orders",auth,proxy(process.env.ORDER_SERVICE_URL||"http://order-service:4003"));
 app.use("/api/payments",auth,proxy(process.env.PAYMENT_SERVICE_URL||"http://payment-service:4004"));
-app.listen(port,"0.0.0.0",()=>console.log(`gateway listening ${port}`));
+app.use((err:any, _req:any, res:any, _next:any)=>{console.error("gateway error", err);const status=err?.statusCode||500;res.status(status).json({error:"internal server error"});});
+export function startServer(){return app.listen(port,"0.0.0.0",()=>console.log(`gateway listening ${port}`));}
+if(process.env.NODE_ENV!=="test")startServer();

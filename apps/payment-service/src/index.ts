@@ -6,14 +6,15 @@ import { z } from "zod";
 import { health } from "./health.js";
 import { PrismaClient } from "@prisma/client";
 
-const app = express();
+export const app = express();
 const port = Number(process.env.PORT || 4004);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL must be set");
 if (!process.env.RABBITMQ_URL) throw new Error("RABBITMQ_URL must be set");
 const secret = process.env.JWT_SECRET;
 if (!secret || secret.length < 32) throw new Error("JWT_SECRET must be set and at least 32 characters");
+app.disable("x-powered-by");
 app.use(helmet());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 health(app, "payment-service", port);
 
 const prisma = new PrismaClient();
@@ -76,9 +77,19 @@ app.post("/", (req, res, next) => {
   }
 });
 
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("payment-service error", err);
+  res.status(500).json({ error: "internal server error" });
+});
+
+export function startServer() {
+  const server = app.listen(port, "0.0.0.0", () => console.log(`payment-service listening ${port}`));
+  return server;
+}
+
 process.on("SIGTERM", async () => {
   await prisma.$disconnect();
   if (connection) await connection.close();
   process.exit(0);
 });
-app.listen(port, "0.0.0.0", () => console.log(`payment-service listening ${port}`));
+if (process.env.NODE_ENV !== "test") startServer();
