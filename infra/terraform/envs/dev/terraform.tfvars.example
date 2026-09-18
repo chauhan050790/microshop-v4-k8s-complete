@@ -1,3 +1,8 @@
-region="ap-south-1"
-db_password="REPLACE"
-mq_password="REPLACE"
+region = "ap-south-1"
+db_password = "ChangeMe123!"
+mq_password = "ChangeMe123!"
+db_backup_retention_period = 0
+db_deletion_protection = false
+db_storage_encrypted = true
+db_multi_az = false
+cluster_endpoint_public_access = true
