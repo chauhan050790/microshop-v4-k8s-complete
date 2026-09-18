@@ -30,7 +30,7 @@ jobs:
       with: {role-to-assume: '${{secrets.AWS_GITHUB_ACTIONS_ROLE_ARN}}',aws-region: '${{env.AWS_REGION}}'}
     - uses: aws-actions/amazon-ecr-login@v2
     - run: docker build -t "$ECR_REGISTRY/microshop/${{matrix.service}}:${GITHUB_SHA}" apps/${{matrix.service}}
-    - uses: aquasecurity/trivy-action@v0.28.0
+    - uses: aquasecurity/trivy-action@v0.36.0
       with: {image-ref: '$ECR_REGISTRY/microshop/${{matrix.service}}:${{github.sha}}',severity: HIGH,CRITICAL,exit-code: '1',ignore-unfixed: true}
     - run: docker push "$ECR_REGISTRY/microshop/${{matrix.service}}:${GITHUB_SHA}"
     - name: Update DEV GitOps tag
