@@ -70,10 +70,20 @@ make helm-lint
 
 For AWS:
 ```bash
+cp infra/terraform/envs/dev/terraform.tfvars.example infra/terraform/envs/dev/terraform.tfvars
+# update the password values and any region overrides in the copied file
 cd infra/terraform/envs/dev
 terraform init
 terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars -auto-approve
+aws eks update-kubeconfig --name microshop-dev --region ap-south-1
+```
+
+The repository already contains the Terraform for VPC, ECR, EKS, RDS, ElastiCache Redis, Amazon MQ, and the required Kubernetes platform manifests. Keep real secrets in the local `terraform.tfvars` files only; they are gitignored.
+
+For a repeatable bootstrap flow on Windows or Linux, use:
+```powershell
+./infra/terraform/bootstrap-aws.ps1 -Environment dev
 ```
 
 Then configure AWS Load Balancer Controller, External Secrets Operator, Argo CD and kube-prometheus-stack using docs/platform-bootstrap.md.

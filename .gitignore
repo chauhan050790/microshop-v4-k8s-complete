@@ -6,5 +6,7 @@ coverage/
 .terraform/
 terraform.tfstate*
 terraform.tfstate.backup
+*.tfvars
+!*.tfvars.example
 .DS_Store
 

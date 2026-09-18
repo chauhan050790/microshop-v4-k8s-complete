@@ -1,5 +1,6 @@
+releaseTag: "b49abff149809cc83b13e7b7089125ff7624cc73"
 global:
-  registry: ""
+  registry: "185188589391.dkr.ecr.ap-south-1.amazonaws.com"
   imagePullPolicy: IfNotPresent
 secretName: microshop/dev
 networkPolicy:
