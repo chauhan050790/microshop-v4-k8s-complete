@@ -1,90 +1,556 @@
 name: CI
+
+# ============================================================
+# TRIGGERS
+# ============================================================
 on:
   push:
+    branches:
+      - main
+      - develop
+
   pull_request:
+    branches:
+      - main
+      - develop
+
   workflow_dispatch:
+
+
+# ============================================================
+# PERMISSIONS
+# ============================================================
 permissions:
   contents: write
   id-token: write
+
+
+# ============================================================
+# GLOBAL ENVIRONMENT
+# ============================================================
+env:
+  AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: "185188589391"
+  ECR_REGISTRY: "185188589391.dkr.ecr.ap-south-1.amazonaws.com"
+  ECR_REPOSITORY: "microshop"
+
+
+# ============================================================
+# JOBS
+# ============================================================
 jobs:
+
+  # ==========================================================
+  # 1. TEST + BUILD APPLICATIONS
+  # ==========================================================
   test-build:
+
+    name: Test & Build - ${{ matrix.service }}
+
     runs-on: ubuntu-latest
+
     strategy:
-      matrix: {service: [api-gateway, user-service, product-service, order-service, payment-service, notification-service, frontend]}
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 22
-        cache: npm
-        cache-dependency-path: apps/${{ matrix.service }}/package-lock.json
-    - run: npm ci
-      working-directory: apps/${{ matrix.service }}
-    - run: npm test
-      working-directory: apps/${{ matrix.service }}
-    - run: npm run build
-      working-directory: apps/${{ matrix.service }}
-  infrastructure:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: hashicorp/setup-terraform@v3
-      with: {terraform_version: 1.15.7}
-    - run: terraform fmt -check -recursive infra/terraform
-    - run: |
-        terraform -chdir=infra/terraform/envs/dev init -backend=false
-        terraform -chdir=infra/terraform/envs/dev validate
-    - uses: azure/setup-helm@v4
-      with: {version: v3.21.0}
-    - run: |
-        helm lint helm/microshop --values helm/microshop/values-prod.yaml \
-          --set global.registry=example.invalid --set releaseTag=0000000000000000000000000000000000000000
-        helm template microshop helm/microshop --namespace microshop-prod \
-          --values helm/microshop/values-prod.yaml \
-          --set global.registry=example.invalid --set releaseTag=0000000000000000000000000000000000000000 > rendered.yaml
-        ! grep -E 'REPLACE_|:latest($|["])' rendered.yaml
-    - uses: azure/setup-kubectl@v4
-    - run: |
-        kubectl kustomize k8s/dev >/dev/null
-        kubectl kustomize k8s/prod >/dev/null
-  publish-images:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test-build
-    runs-on: ubuntu-latest
-    strategy:
+      # Important:
+      # One failed service must NOT cancel the other services.
+      fail-fast: false
+
       matrix:
-        service: [api-gateway, user-service, product-service, order-service, payment-service, notification-service, frontend]
+        service:
+          - api-gateway
+          - user-service
+          - product-service
+          - order-service
+          - payment-service
+          - notification-service
+          - frontend
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::185188589391:role/MicroShopGitHubActionsECR
-        aws-region: ap-south-1
-    - uses: aws-actions/amazon-ecr-login@v2
-    - uses: docker/setup-buildx-action@v3
-    - uses: docker/build-push-action@v6
-      with:
-        context: apps/${{ matrix.service }}
-        push: true
-        tags: 185188589391.dkr.ecr.ap-south-1.amazonaws.com/microshop/${{ matrix.service }}:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-  update-dev-gitops:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: publish-images
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+
+      # ------------------------------------------------------
+      # Validate service directory
+      # ------------------------------------------------------
+      - name: Validate service files
+        shell: bash
+        run: |
+          set -e
+
+          SERVICE="${{ matrix.service }}"
+          SERVICE_DIR="apps/${SERVICE}"
+
+          echo "=========================================="
+          echo "Service: ${SERVICE}"
+          echo "Directory: ${SERVICE_DIR}"
+          echo "Commit: ${GITHUB_SHA}"
+          echo "=========================================="
+
+          if [ ! -d "${SERVICE_DIR}" ]; then
+            echo "ERROR: Service directory does not exist:"
+            echo "${SERVICE_DIR}"
+            exit 1
+          fi
+
+          if [ ! -f "${SERVICE_DIR}/package.json" ]; then
+            echo "ERROR: package.json not found"
+            exit 1
+          fi
+
+          if [ ! -f "${SERVICE_DIR}/package-lock.json" ]; then
+            echo "ERROR: package-lock.json not found"
+            exit 1
+          fi
+
+          if [ ! -f "${SERVICE_DIR}/Dockerfile" ]; then
+            echo "ERROR: Dockerfile not found"
+            exit 1
+          fi
+
+          echo ""
+          echo "Service files:"
+          ls -la "${SERVICE_DIR}"
+
+
+      # ------------------------------------------------------
+      # Setup Node.js
+      # ------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.service }}/package-lock.json
+
+
+      # ------------------------------------------------------
+      # Node/npm versions
+      # ------------------------------------------------------
+      - name: Check Node.js and npm
+        run: |
+          node --version
+          npm --version
+
+
+      # ------------------------------------------------------
+      # Install dependencies
+      # ------------------------------------------------------
+      - name: Install dependencies
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          npm ci
+
+
+      # ------------------------------------------------------
+      # Run tests
+      # ------------------------------------------------------
+      - name: Run tests
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          npm test
+
+
+      # ------------------------------------------------------
+      # Build application
+      # ------------------------------------------------------
+      - name: Build application
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          npm run build
+
+
+  # ==========================================================
+  # 2. INFRASTRUCTURE VALIDATION
+  # ==========================================================
+  infrastructure:
+
+    name: Infrastructure Validation
+
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: Pin DEV images to this commit
-      run: |
-        sed -i "s/000000000000.dkr.ecr.ap-south-1.amazonaws.com/185188589391.dkr.ecr.ap-south-1.amazonaws.com/g" argocd/application-dev.yaml k8s/dev/kustomization.yaml
-        sed -i "s/0000000000000000000000000000000000000000/${GITHUB_SHA}/g" argocd/application-dev.yaml k8s/dev/kustomization.yaml
-    - name: Commit DEV GitOps update
-      run: |
-        git config user.name github-actions[bot]
-        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-        git add argocd/application-dev.yaml k8s/dev/kustomization.yaml
-        git diff --cached --quiet || git commit -m "Deploy DEV ${GITHUB_SHA} [skip ci]"
-        git push
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+
+      # ------------------------------------------------------
+      # Setup Terraform
+      # ------------------------------------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+
+      # ------------------------------------------------------
+      # Terraform format
+      # ------------------------------------------------------
+      - name: Terraform format check
+        run: |
+          terraform fmt -check -recursive infra/terraform
+
+
+      # ------------------------------------------------------
+      # Terraform init
+      # ------------------------------------------------------
+      - name: Terraform init
+        working-directory: infra/terraform/envs/dev
+        run: |
+          terraform init -backend=false
+
+
+      # ------------------------------------------------------
+      # Terraform validate
+      # ------------------------------------------------------
+      - name: Terraform validate
+        working-directory: infra/terraform/envs/dev
+        run: |
+          terraform validate
+
+
+      # ------------------------------------------------------
+      # Setup Helm
+      # ------------------------------------------------------
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.21.0"
+
+
+      # ------------------------------------------------------
+      # Helm lint
+      # ------------------------------------------------------
+      - name: Helm lint
+        run: |
+          helm lint \
+            helm/microshop \
+            --values helm/microshop/values-prod.yaml \
+            --set global.registry=example.invalid \
+            --set releaseTag=0000000000000000000000000000000000000000
+
+
+      # ------------------------------------------------------
+      # Helm template
+      # ------------------------------------------------------
+      - name: Render Helm templates
+        run: |
+          helm template \
+            microshop \
+            helm/microshop \
+            --namespace microshop-prod \
+            --values helm/microshop/values-prod.yaml \
+            --set global.registry=example.invalid \
+            --set releaseTag=0000000000000000000000000000000000000000 \
+            > rendered.yaml
+
+
+      # ------------------------------------------------------
+      # Validate rendered Helm manifest
+      # ------------------------------------------------------
+      - name: Validate Helm rendered output
+        shell: bash
+        run: |
+          set -e
+
+          echo "Checking rendered.yaml..."
+
+          if grep -E 'REPLACE_|:latest($|["])' rendered.yaml; then
+            echo ""
+            echo "ERROR: Invalid placeholder/latest image detected."
+            exit 1
+          fi
+
+          echo "Helm rendered output is valid."
+
+
+      # ------------------------------------------------------
+      # Setup kubectl
+      # ------------------------------------------------------
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+
+      # ------------------------------------------------------
+      # Validate DEV Kustomize
+      # ------------------------------------------------------
+      - name: Validate DEV Kustomize
+        run: |
+          kubectl kustomize k8s/dev > /dev/null
+
+          echo "DEV Kustomize validation successful."
+
+
+      # ------------------------------------------------------
+      # Validate PROD Kustomize
+      # ------------------------------------------------------
+      - name: Validate PROD Kustomize
+        run: |
+          kubectl kustomize k8s/prod > /dev/null
+
+          echo "PROD Kustomize validation successful."
+
+
+  # ==========================================================
+  # 3. BUILD + SCAN + PUSH DOCKER IMAGES
+  # ==========================================================
+  publish-images:
+
+    name: Publish - ${{ matrix.service }}
+
+    # Only publish from main/develop.
+    # PRs should only test/build.
+    if: |
+      github.event_name == 'push' &&
+      (
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/develop'
+      )
+
+    needs:
+      - test-build
+      - infrastructure
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        service:
+          - api-gateway
+          - user-service
+          - product-service
+          - order-service
+          - payment-service
+          - notification-service
+          - frontend
+
+    steps:
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+
+      # ------------------------------------------------------
+      # Configure AWS
+      # ------------------------------------------------------
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::185188589391:role/MicroShopGitHubActionsECR
+          aws-region: ${{ env.AWS_REGION }}
+
+
+      # ------------------------------------------------------
+      # Verify AWS identity
+      # ------------------------------------------------------
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+
+
+      # ------------------------------------------------------
+      # Login to ECR
+      # ------------------------------------------------------
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+
+      # ------------------------------------------------------
+      # Setup Docker Buildx
+      # ------------------------------------------------------
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+
+      # ------------------------------------------------------
+      # Set image name
+      # ------------------------------------------------------
+      - name: Set image name
+        shell: bash
+        run: |
+          IMAGE_NAME="${ECR_REGISTRY}/${ECR_REPOSITORY}/${{ matrix.service }}:${GITHUB_SHA}"
+
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> "${GITHUB_ENV}"
+
+          echo "=========================================="
+          echo "Docker Image"
+          echo "${IMAGE_NAME}"
+          echo "=========================================="
+
+
+      # ------------------------------------------------------
+      # Build Docker image
+      # ------------------------------------------------------
+      - name: Build Docker image
+        run: |
+          docker build \
+            --tag "${IMAGE_NAME}" \
+            "apps/${{ matrix.service }}"
+
+
+      # ------------------------------------------------------
+      # Verify Docker image
+      # ------------------------------------------------------
+      - name: Verify Docker image
+        run: |
+          docker image inspect "${IMAGE_NAME}"
+
+          echo "Docker image created successfully."
+
+
+      # ------------------------------------------------------
+      # Trivy vulnerability scan
+      # ------------------------------------------------------
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
+
+
+      # ------------------------------------------------------
+      # Push Docker image
+      # ------------------------------------------------------
+      - name: Push Docker image to ECR
+        run: |
+          docker push "${IMAGE_NAME}"
+
+
+      # ------------------------------------------------------
+      # Display final image
+      # ------------------------------------------------------
+      - name: Display published image
+        run: |
+          echo "=========================================="
+          echo "IMAGE PUBLISHED SUCCESSFULLY"
+          echo "=========================================="
+          echo "${IMAGE_NAME}"
+          echo "=========================================="
+
+
+  # ==========================================================
+  # 4. UPDATE DEV GITOPS
+  # ==========================================================
+  update-dev-gitops:
+
+    name: Update DEV GitOps
+
+    # Only develop branch updates DEV.
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/develop'
+
+    needs:
+      - publish-images
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ------------------------------------------------------
+      # Checkout latest develop
+      # ------------------------------------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      # ------------------------------------------------------
+      # Update ECR registry and image tag
+      # ------------------------------------------------------
+      - name: Update DEV image references
+        shell: bash
+        run: |
+          set -e
+
+          echo "=========================================="
+          echo "Updating DEV GitOps"
+          echo "=========================================="
+
+          echo "ECR Registry:"
+          echo "${ECR_REGISTRY}"
+
+          echo "Release Tag:"
+          echo "${GITHUB_SHA}"
+
+          # --------------------------------------------------
+          # Update ECR registry
+          # --------------------------------------------------
+          sed -i \
+            "s#000000000000.dkr.ecr.ap-south-1.amazonaws.com#${ECR_REGISTRY}#g" \
+            argocd/application-dev.yaml \
+            k8s/dev/kustomization.yaml
+
+          # --------------------------------------------------
+          # Replace placeholder SHA
+          # --------------------------------------------------
+          sed -i \
+            "s#0000000000000000000000000000000000000000#${GITHUB_SHA}#g" \
+            argocd/application-dev.yaml \
+            k8s/dev/kustomization.yaml
+
+          echo ""
+          echo "GitOps files after update:"
+          echo "------------------------------------------"
+
+          cat argocd/application-dev.yaml
+
+          echo "------------------------------------------"
+
+          cat k8s/dev/kustomization.yaml
+
+
+      # ------------------------------------------------------
+      # Validate updated Kustomize
+      # ------------------------------------------------------
+      - name: Validate updated DEV Kustomize
+        run: |
+          kubectl kustomize k8s/dev > /dev/null
+
+          echo "Updated DEV Kustomize is valid."
+
+
+      # ------------------------------------------------------
+      # Commit and push GitOps changes
+      # ------------------------------------------------------
+      - name: Commit DEV GitOps update
+        shell: bash
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            argocd/application-dev.yaml \
+            k8s/dev/kustomization.yaml
+
+          if git diff --cached --quiet; then
+
+            echo "No GitOps changes detected."
+
+          else
+
+            git commit \
+              -m "Deploy DEV ${GITHUB_SHA} [skip ci]"
+
+            git push
+
+          fi
